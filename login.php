@@ -12,26 +12,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   if (!$captchaSuccess->success) {
     $errors[] = "Verifikasi CAPTCHA gagal. Silakan coba lagi.";
   }
-
-  // Validasi form
-  if (empty($_POST["nama"])) $errors[] = "Nama belum diisi.";
-  if (empty($_POST["tanggalLahir"])) $errors[] = "Tanggal lahir belum diisi.";
-  if (empty($_POST["jenisKelamin"])) $errors[] = "Jenis kelamin belum dipilih.";
-  if (empty($_POST["alamat"])) $errors[] = "Alamat belum diisi.";
-  if (empty($_POST["telepon"])) $errors[] = "Nomor telepon belum diisi.";
-  if (empty($_POST["kategori"])) $errors[] = "Kategori petani belum dipilih.";
-  if (empty($_POST["email"])) $errors[] = "Email belum diisi.";
-  if (empty($_POST["password"])) $errors[] = "Password belum diisi.";
-
-  // Jika lolos semua validasi
-  if (empty($errors)) {
-    $success = true;
-
-    // Di sini seharusnya Anda menyimpan ke database
-    // Contoh: simpanData($_POST['nama'], ...);
-  }
 }
 
+//databases
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -41,35 +24,38 @@ if ($conn->connect_error) {
     die("Koneksi gagal: " . $conn->connect_error);
 }
 echo" Koneksi berhasil";
-// Jika form berhasil disubmit, simpan data ke database
-if ($_SERVER["REQUEST_METHOD"] == "POST" && $success) {
-    $Nama = $conn->real_escape_string($_POST['nama']);
-    $Tanggal_Lahir = $conn->real_escape_string($_POST['tanggalLahir']);
-    $Jenis_Kelamin = $conn->real_escape_string($_POST['jenisKelamin']);
-    $Alamat = $conn->real_escape_string($_POST['alamat']);
-    $No_Telp = $conn->real_escape_string($_POST['telepon']);
-    $Kategori = $conn->real_escape_string($_POST['kategori']);
-    $Email = $conn->real_escape_string($_POST['email']);
-    $Password =$conn->real_escape_string($_POST['password']);
 
-    // Query untuk menyimpan data
-    $sql = "INSERT INTO registrasi (Nama, Tanggal_Lahir, Jenis_Kelamin, Alamat, No_Telp, Kategori_Petani, Email, Password) VALUES ('$Nama', '$Tanggal_Lahir', '$Jenis_Kelamin', '$Alamat', '$No_Telp', '$Kategori', '$Email', '$Password')";
+if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
+  $email = $_POST['email'] ?? '';
+  $password = $_POST['password'] ?? '';
 
-    if ($conn->query($sql) === TRUE) {
-        echo "Data berhasil disimpan.";
+  // Validasi input
+  if (empty($email) || empty($password)) {
+    $errors[] = "Email dan Password harus diisi.";
+  } else {
+    // Cek kredensial di database
+    $stmt = $conn->prepare("SELECT * FROM registrasi WHERE email = ? AND password = ?");
+    $stmt->bind_param("ss", $email, $password);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows > 0) {
+      // Login berhasil
+      $success = true;
     } else {
-        echo "Error: " . $sql . "<br>" . $conn->error;
+      $errors[] = "Email atau Password salah.";
     }
+    $stmt->close();
+  }
 }
+
 ?>
-
-
 <!doctype html>
 <html lang="id">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Registrasi - AgriMirai</title>
+  <title>Login - AgriMirai</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="shortcut icon" href="img/icon.ico">
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
@@ -162,12 +148,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $success) {
         <img src="img/logo.png" alt="Logo Saya" width="150" height="150" style="margin-bottom: 30px;">
       </a>
       <h2 class="mt-3">Selamat Datang Petani</h2>
-      <p class="text-center">Silakan isi formulir pendaftaran di samping untuk bergabung dengan AgriMirai.</p>
+      <p class="text-center">Silakan isi formulir Login di samping untuk masuk dengan AgriMirai.</p>
     </div>
 
     <!-- Right Form -->
     <div class="col-md-7 login-right">
-      <h4 class="mb-4 text-center">Form Registrasi</h4>
+      <h4 class="mb-4 text-center">Form Login</h4>
 
       <?php if (!empty($errors)): ?>
         <div class="alert alert-danger">
@@ -178,51 +164,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $success) {
       <?php endif; ?>
 
       <form method="post" action="">
-        <!-- Nama -->
-        <div class="mb-3">
-          <label for="nama" class="form-label">Nama Lengkap</label>
-          <input type="text" class="form-control" id="nama" name="nama" placeholder="Contoh: Budi Santoso" value="<?= htmlspecialchars($_POST['nama'] ?? '') ?>">
-        </div>
-
-        <!-- Tanggal Lahir & Jenis Kelamin -->
-        <div class="row mb-3">
-          <div class="col-md-6">
-            <label for="tanggalLahir" class="form-label">Tanggal Lahir</label>
-            <input type="date" class="form-control" id="tanggalLahir" name="tanggalLahir" value="<?= $_POST['tanggalLahir'] ?? '' ?>">
-          </div>
-          <div class="col-md-6">
-            <label for="jenisKelamin" class="form-label">Jenis Kelamin</label>
-            <select class="form-select" id="jenisKelamin" name="jenisKelamin">
-              <option selected disabled>Pilih</option>
-              <option value="Laki-laki" <?= ($_POST['jenisKelamin'] ?? '') == 'Laki-laki' ? 'selected' : '' ?>>Laki-laki</option>
-              <option value="Perempuan" <?= ($_POST['jenisKelamin'] ?? '') == 'Perempuan' ? 'selected' : '' ?>>Perempuan</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Alamat -->
-        <div class="mb-3">
-          <label for="alamat" class="form-label">Alamat</label>
-          <textarea class="form-control" id="alamat" name="alamat" rows="2" placeholder="Contoh: Jl. Raya No. 123, Bandung"><?= $_POST['alamat'] ?? '' ?></textarea>
-        </div>
-
-        <!-- No Telepon -->
-        <div class="mb-3">
-          <label for="telepon" class="form-label">No Telepon</label>
-          <input type="tel" class="form-control" id="telepon" name="telepon" placeholder="Contoh: 08123456789" value="<?= $_POST['telepon'] ?? '' ?>">
-        </div>
-
-        <!-- Kategori Petani -->
-        <div class="mb-3">
-          <label for="kategori" class="form-label">Kategori Petani</label>
-          <select class="form-select" id="kategori" name="kategori">
-            <option selected disabled>Pilih kategori</option>
-            <option value="sayur" <?= ($_POST['kategori'] ?? '') == 'sayur' ? 'selected' : '' ?>>Petani Sayur</option>
-            <option value="buah" <?= ($_POST['kategori'] ?? '') == 'buah' ? 'selected' : '' ?>>Petani Buah</option>
-            <option value="padi" <?= ($_POST['kategori'] ?? '') == 'padi' ? 'selected' : '' ?>>Petani Padi</option>
-          </select>
-        </div>
-
         <!-- Email -->
         <div class="mb-3">
           <label for="email" class="form-label">Email</label>
@@ -234,13 +175,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $success) {
           <label for="password" class="form-label">Password</label>
           <input type="password" class="form-control" id="password" name="password" placeholder="Minimal 6 karakter">
         </div>
-
         <!-- Google reCAPTCHA -->
         <div class="g-recaptcha mb-4" data-sitekey="6LdNZkcrAAAAAJXAyBy2WlKjRZyl7ehCc-lqDRJ0"></div>
 
+        <!-- Regis -->
+        <div class="d-grid gap-2">
+          <a href="registrasi.php">Belum punya akun? Daftar Sekarang</a>
+        </div>
+
         <!-- Submit -->
         <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-success">Daftar</button>
+          <button type="submit" class="btn btn-success">Login</button>
         </div>
       </form>
     </div>
@@ -258,15 +203,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $success) {
 <script>
 Swal.fire({
   icon: 'success',
-  title: 'Registrasi Berhasil!',
-  text: 'Terima Kasih Anda Sudah Terdaftar Dengan AgriMirai',
+  title: 'Login Berhasil!',
+  text: 'Selamat datang di AgriMirai',
   confirmButtonText: 'OK',
   confirmButtonColor: '#19735d'
 }).then(() => {
-  window.location.href = "login.php"; // Ganti jika ingin redirect ke halaman lain
+  window.location.href = "home.php"; // Ganti jika ingin redirect ke halaman lain
 });
 </script>
 <?php endif; ?>
+<?php
+
+?>
 
 </body>
 </html>
